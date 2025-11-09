@@ -17,6 +17,7 @@ export interface DungeonDirgeSettings {
 	showFadeIn: boolean;
 	showFadeOut: boolean;
 	showRepeat: boolean;
+	tagGroupOrder: string[]; // custom order of tag groups
 }
 
 export const DEFAULT_SETTINGS: DungeonDirgeSettings = {
@@ -25,7 +26,8 @@ export const DEFAULT_SETTINGS: DungeonDirgeSettings = {
 	showTimeline: true,
 	showFadeIn: true,
 	showFadeOut: true,
-	showRepeat: true
+	showRepeat: true,
+	tagGroupOrder: []
 };
 
 export const DEFAULT_AUDIO_FILE_SETTINGS: Partial<AudioFileSettings> = {
