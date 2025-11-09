@@ -166,25 +166,14 @@ export class DungeonDirgeView extends ItemView {
 		fileItem.style.transition = `border-color ${fadeOutTime}s ease, background-color 0.2s ease`;
 
 		const fileInfo = fileItem.createDiv({ cls: "dungeon-dirge-file-info" });
-		fileInfo.createEl("div", { text: file.name, cls: "dungeon-dirge-file-name" });
-		
-		const fileDetails = fileInfo.createDiv({ cls: "dungeon-dirge-file-details" });
-		fileDetails.createEl("span", { text: `Vol: ${Math.round(settings.volume * 100)}%` });
-		if (settings.fadeIn > 0) {
-			fileDetails.createEl("span", { text: `Fade In: ${settings.fadeIn}s` });
-		}
-		if (settings.fadeOut > 0) {
-			fileDetails.createEl("span", { text: `Fade Out: ${settings.fadeOut}s` });
-		}
-		if (settings.repeat) {
-			fileDetails.createEl("span", { text: "Loop" });
-		}
+		const displayName = settings.displayName || file.name;
+		fileInfo.createEl("div", { text: displayName, cls: "dungeon-dirge-file-name" });
 
 		const controls = fileItem.createDiv({ cls: "dungeon-dirge-file-controls" });
 
-		// Play/Stop button
+		// Play/Stop button with icons
 		const playButton = controls.createEl("button", {
-			text: isPlaying ? "Stop" : "Play",
+			text: isPlaying ? "■" : "▶",
 			cls: isPlaying ? "mod-warning" : "mod-cta"
 		});
 		playButton.addEventListener("click", async () => {
@@ -198,23 +187,28 @@ export class DungeonDirgeView extends ItemView {
 			this.render();
 		});
 
-		// Volume control
-		const volumeControl = controls.createDiv({ cls: "dungeon-dirge-volume-control" });
-		const volumeSlider = volumeControl.createEl("input", {
+		// Volume slider
+		const volumeContainer = controls.createDiv({ cls: "dungeon-dirge-volume-container" });
+		const volumeSlider = volumeContainer.createEl("input", {
 			type: "range",
+			cls: "dungeon-dirge-volume-slider",
 			attr: {
 				min: "0",
 				max: "100",
 				value: String(Math.round(settings.volume * 100))
 			}
 		});
-		volumeSlider.addEventListener("input", (e) => {
-			const volume = parseInt((e.target as HTMLInputElement).value) / 100;
-			settings.volume = volume;
+		volumeSlider.addEventListener("input", async (e) => {
+			const target = e.target as HTMLInputElement;
+			const newVolume = parseInt(target.value) / 100;
+			settings.volume = newVolume;
+			this.plugin.settings.audioFiles[file.path] = settings;
+			await this.plugin.saveSettings();
+			
+			// Update volume if currently playing
 			if (isPlaying) {
-				this.plugin.playerManager.setVolume(file.path, volume);
+				this.plugin.playerManager.setVolume(file.path, newVolume);
 			}
-			this.plugin.saveSettings();
 		});
 
 		// Settings button

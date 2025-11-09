@@ -176,6 +176,11 @@ export class AudioPlayerManager {
 		return Array.from(this.activeAudios.keys());
 	}
 
+	getAudio(filePath: string): HTMLAudioElement | undefined {
+		const activeAudio = this.activeAudios.get(filePath);
+		return activeAudio ? activeAudio.audio : undefined;
+	}
+
 	cleanup(): void {
 		this.stopAll(false);
 	}

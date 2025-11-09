@@ -22,6 +22,17 @@ export class AudioFileSettingsModal extends Modal {
 		contentEl.createEl("h2", { text: "Audio File Settings" });
 		contentEl.createEl("p", { text: this.settings.path, cls: "dungeon-dirge-modal-path" });
 
+		// Display Name
+		new Setting(contentEl)
+			.setName("Display Name")
+			.setDesc("Custom name to display (defaults to filename if empty)")
+			.addText(text => text
+				.setPlaceholder("Enter custom name")
+				.setValue(this.settings.displayName || "")
+				.onChange(value => {
+					this.settings.displayName = value;
+				}));
+
 		// Fade In
 		new Setting(contentEl)
 			.setName("Fade In Duration")
