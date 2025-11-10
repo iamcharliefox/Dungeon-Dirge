@@ -1,12 +1,15 @@
-import { Plugin, WorkspaceLeaf } from "obsidian";
+import { Plugin, WorkspaceLeaf, MarkdownView } from "obsidian";
 import { DungeonDirgeSettings, DEFAULT_SETTINGS } from "./types";
 import { AudioPlayerManager } from "./audio-player";
 import { DungeonDirgeView, VIEW_TYPE_DUNGEON_DIRGE } from "./view";
 import { DungeonDirgeSettingTab } from "./settings-tab";
+import { DungeonDirgeInlineProcessor } from "./code-block-processor";
+import { InsertSongModal } from "./insert-song-modal";
 
 export default class DungeonDirgePlugin extends Plugin {
 	settings: DungeonDirgeSettings;
 	playerManager: AudioPlayerManager;
+	inlineProcessor: DungeonDirgeInlineProcessor;
 
 	async onload() {
 		await this.loadSettings();
@@ -14,11 +17,19 @@ export default class DungeonDirgePlugin extends Plugin {
 		// Initialize the audio player manager with vault
 		this.playerManager = new AudioPlayerManager(this.app.vault);
 
+		// Initialize inline processor
+		this.inlineProcessor = new DungeonDirgeInlineProcessor(this);
+
 		// Register the view
 		this.registerView(
 			VIEW_TYPE_DUNGEON_DIRGE,
 			(leaf) => new DungeonDirgeView(leaf, this)
 		);
+
+		// Register markdown post processor for inline syntax
+		this.registerMarkdownPostProcessor((el, ctx) => {
+			this.inlineProcessor.processInline(el, ctx);
+		});
 
 		// Add ribbon icon
 		this.addRibbonIcon("music", "Open DungeonDirge", () => {
@@ -31,6 +42,19 @@ export default class DungeonDirgePlugin extends Plugin {
 			name: "Open DungeonDirge",
 			callback: () => {
 				this.activateView();
+			}
+		});
+
+		// Add command to insert song
+		this.addCommand({
+			id: "insert-song",
+			name: "Insert Song",
+			editorCallback: (editor, view) => {
+				const modal = new InsertSongModal(this.app, this, (file) => {
+					const songSyntax = `{{song: ${file.path}}}`;
+					editor.replaceSelection(songSyntax);
+				});
+				modal.open();
 			}
 		});
 
