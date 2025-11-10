@@ -65,7 +65,7 @@ export class DungeonDirgeSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
-		containerEl.createEl("h2", { text: "DungeonDirge Settings" });
+		containerEl.createEl("h2", { text: "Dungeon Dirge Settings" });
 
 		// Folder selection
 		new Setting(containerEl)
@@ -108,7 +108,7 @@ export class DungeonDirgeSettingTab extends PluginSettingTab {
 
 		containerEl.createEl("h3", { text: "About" });
 		containerEl.createEl("p", { 
-			text: "DungeonDirge allows you to play multiple audio files simultaneously with customizable fade effects, volume control, and tag-based organization. Perfect for tabletop RPG background music and ambiance."
+			text: "Dungeon Dirge allows you to play multiple audio files simultaneously with customizable fade effects, volume control, and tag-based organization. Perfect for tabletop RPG background music and ambiance."
 		});
 
 		containerEl.createEl("p", { 
