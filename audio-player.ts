@@ -87,6 +87,9 @@ export class AudioPlayerManager {
 		// Mark as stopping immediately so UI can update
 		activeAudio.isStopping = true;
 
+		// Disable looping to ensure it stops properly
+		activeAudio.audio.loop = false;
+
 		// Clear any existing fade interval
 		if (activeAudio.fadeInterval) {
 			window.clearInterval(activeAudio.fadeInterval);

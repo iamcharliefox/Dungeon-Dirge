@@ -107,7 +107,6 @@ export class DungeonDirgeView extends ItemView {
 			const isCollapsed = this.plugin.settings.collapsedTags.includes(tag);
 			
 			const tagSection = audioSection.createDiv({ cls: "dungeon-dirge-tag-group" });
-			tagSection.setAttribute("draggable", "true");
 			tagSection.setAttribute("data-tag", tag);
 			
 			if (isCollapsed) {
@@ -115,6 +114,7 @@ export class DungeonDirgeView extends ItemView {
 			}
 			
 			const tagHeader = tagSection.createDiv({ cls: "dungeon-dirge-tag-header" });
+			tagHeader.setAttribute("draggable", "true");
 			
 			// Add drag handle
 			const dragHandle = tagHeader.createEl("span", {
@@ -130,7 +130,7 @@ export class DungeonDirgeView extends ItemView {
 			// Make header clickable to toggle collapse (except drag handle)
 			tagHeader.style.cursor = "pointer";
 			tagHeader.addEventListener("click", async (e) => {
-				// Don't collapse if clicking drag handle
+				// Don't collapse if clicking drag handle or if dragging
 				if ((e.target as HTMLElement).classList.contains("dungeon-dirge-drag-handle")) {
 					return;
 				}
@@ -143,17 +143,17 @@ export class DungeonDirgeView extends ItemView {
 				this.render();
 			});
 
-			// Drag and drop handlers
-			tagSection.addEventListener("dragstart", (e) => {
+			// Drag and drop handlers on tagHeader instead of tagSection
+			tagHeader.addEventListener("dragstart", (e) => {
 				e.dataTransfer?.setData("text/plain", tag);
 				tagSection.addClass("is-dragging");
 			});
 
-			tagSection.addEventListener("dragend", () => {
+			tagHeader.addEventListener("dragend", () => {
 				tagSection.removeClass("is-dragging");
 			});
 
-			tagSection.addEventListener("dragover", (e) => {
+			tagHeader.addEventListener("dragover", (e) => {
 				e.preventDefault();
 				const draggingElement = document.querySelector(".is-dragging");
 				if (draggingElement && draggingElement !== tagSection) {
@@ -161,11 +161,11 @@ export class DungeonDirgeView extends ItemView {
 				}
 			});
 
-			tagSection.addEventListener("dragleave", () => {
+			tagHeader.addEventListener("dragleave", () => {
 				tagSection.removeClass("drag-over");
 			});
 
-			tagSection.addEventListener("drop", async (e) => {
+			tagHeader.addEventListener("drop", async (e) => {
 				e.preventDefault();
 				tagSection.removeClass("drag-over");
 				
@@ -224,15 +224,92 @@ export class DungeonDirgeView extends ItemView {
 			this.render();
 		});
 		
+		// Loop toggle button (next to play button)
+		const loopButton = mainRow.createEl("button", {
+			text: "↻",
+			cls: `dungeon-dirge-loop-toggle ${settings.repeat ? "is-active" : ""}`,
+			attr: { "aria-label": "Toggle loop" }
+		});
+		loopButton.addEventListener("click", async () => {
+			settings.repeat = !settings.repeat;
+			this.plugin.settings.audioFiles[file.path] = settings;
+			await this.plugin.saveSettings();
+			
+			// Update the audio if currently playing
+			if (isPlaying) {
+				const audio = this.plugin.playerManager.getAudio(file.path);
+				if (audio) {
+					audio.loop = settings.repeat;
+				}
+			}
+			this.render();
+		});
+		
 		const fileInfo = mainRow.createDiv({ cls: "dungeon-dirge-file-info" });
 		const displayName = settings.displayName || file.name;
 		const fileName = fileInfo.createEl("div", { 
 			text: displayName, 
-			cls: "dungeon-dirge-file-name dungeon-dirge-file-name-clickable"
+			cls: "dungeon-dirge-file-name dungeon-dirge-file-name-editable"
+		});
+		fileName.setAttribute("title", "Double-click to edit name");
+		
+		// Make filename double-clickable to edit inline
+		fileName.addEventListener("dblclick", (e) => {
+			// Check if we're already in edit mode (input exists)
+			if (fileName.querySelector("input")) {
+				return;
+			}
+			
+			e.stopPropagation();
+			const currentName = settings.displayName || file.name;
+			
+			// Create input element
+			const input = fileName.createEl("input", {
+				type: "text",
+				value: currentName,
+				cls: "dungeon-dirge-inline-name-edit"
+			});
+			
+			// Clear the text content
+			Array.from(fileName.childNodes).forEach(node => {
+				if (node !== input) {
+					node.remove();
+				}
+			});
+			
+			input.focus();
+			input.select();
+			
+			const saveAndExit = async () => {
+				const newName = input.value.trim();
+				// Only save if different from filename (empty means use filename)
+				if (newName && newName !== file.name) {
+					settings.displayName = newName;
+				} else {
+					settings.displayName = "";
+				}
+				this.plugin.settings.audioFiles[file.path] = settings;
+				await this.plugin.saveSettings();
+				this.render();
+			};
+			
+			input.addEventListener("blur", saveAndExit);
+			input.addEventListener("keydown", (e) => {
+				if (e.key === "Enter") {
+					saveAndExit();
+				} else if (e.key === "Escape") {
+					this.render();
+				}
+			});
 		});
 		
-		// Make filename clickable to toggle drawer
-		fileName.addEventListener("click", () => {
+		// Add settings toggle button (accordion arrow) to main row
+		const settingsButton = mainRow.createEl("button", {
+			text: isExpanded ? "▲" : "▼",
+			cls: "dungeon-dirge-settings-toggle",
+			attr: { "aria-label": "Toggle settings" }
+		});
+		settingsButton.addEventListener("click", () => {
 			if (this.expandedFiles.has(file.path)) {
 				this.expandedFiles.delete(file.path);
 			} else {
@@ -241,27 +318,23 @@ export class DungeonDirgeView extends ItemView {
 			this.render();
 		});
 
-		// Show metadata if not in minimal layout mode
-		if (!this.plugin.settings.minimalLayout) {
-			const metadataRow = fileInfo.createDiv({ cls: "dungeon-dirge-metadata-compact" });
+		// Timeline/scrubber - add below the title in fileInfo
+		const timeline = fileInfo.createDiv({ cls: "dungeon-dirge-timeline-compact" });
+		const progressBar = timeline.createDiv({ cls: "dungeon-dirge-progress-bar" });
+		const progress = progressBar.createDiv({ cls: "dungeon-dirge-progress" });
+		
+		// Get audio element and update progress if playing
+		const audio = this.plugin.playerManager.getAudio(file.path);
+		if (audio && (isPlaying || isStopping)) {
+			const updateProgress = () => {
+				if (audio.duration) {
+					const percent = (audio.currentTime / audio.duration) * 100;
+					progress.style.width = `${percent}%`;
+				}
+			};
 			
-			// Timeline/scrubber
-			const timeline = metadataRow.createDiv({ cls: "dungeon-dirge-timeline-compact" });
-			const progressBar = timeline.createDiv({ cls: "dungeon-dirge-progress-bar" });
-			const progress = progressBar.createDiv({ cls: "dungeon-dirge-progress" });
-			
-			// Get audio element and update progress if playing
-			const audio = this.plugin.playerManager.getAudio(file.path);
-			if (audio && (isPlaying || isStopping)) {
-				const updateProgress = () => {
-					if (audio.duration) {
-						const percent = (audio.currentTime / audio.duration) * 100;
-						progress.style.width = `${percent}%`;
-					}
-				};
-				
-				// Initial update
-				updateProgress();
+			// Initial update
+			updateProgress();
 				
 				// Update every 100ms while playing
 				const intervalId = window.setInterval(() => {
@@ -281,62 +354,20 @@ export class DungeonDirgeView extends ItemView {
 					updateProgress();
 				});
 			}
-			
-			// Fade/Loop indicators column
-			const indicatorsColumn = metadataRow.createDiv({ cls: "dungeon-dirge-indicators-column" });
-			
-			// Repeat (always show, highlight if enabled, click to toggle)
-			const repeatIndicator = indicatorsColumn.createEl("span", { 
-				text: "↻",
-				cls: "dungeon-dirge-meta-item dungeon-dirge-meta-clickable dungeon-dirge-loop-indicator"
-			});
-			if (settings.repeat) {
-				repeatIndicator.addClass("is-active");
-			}
-			repeatIndicator.addEventListener("click", async (e) => {
-				e.stopPropagation();
-				settings.repeat = !settings.repeat;
-				this.plugin.settings.audioFiles[file.path] = settings;
-				await this.plugin.saveSettings();
-				
-				// Update the audio if currently playing
-				if (isPlaying) {
-					const audio = this.plugin.playerManager.getAudio(file.path);
-					if (audio) {
-						audio.loop = settings.repeat;
-					}
-				}
-				this.render();
-			});
-		}
-
+		
 		// Settings drawer (expanded inline)
 		if (isExpanded) {
 			const drawer = fileItem.createDiv({ cls: "dungeon-dirge-settings-drawer" });
 			
-			// Display Name
-			const nameGroup = drawer.createDiv({ cls: "dungeon-dirge-setting-group" });
-			nameGroup.createEl("label", { text: "Display Name" });
-			const nameInput = nameGroup.createEl("input", {
-				type: "text",
-				placeholder: "Custom name",
-				value: settings.displayName || ""
-			});
-			nameInput.addEventListener("input", async () => {
-				settings.displayName = nameInput.value;
-				this.plugin.settings.audioFiles[file.path] = settings;
-				await this.plugin.saveSettings();
-			});
-			nameInput.addEventListener("blur", () => {
-				this.render();
-			});
+			// All controls in one row
+			const controlsRow = drawer.createDiv({ cls: "dungeon-dirge-controls-row" });
 			
 			// Volume slider
-			const volumeGroup = drawer.createDiv({ cls: "dungeon-dirge-setting-group" });
-			volumeGroup.createEl("label", { text: `Volume: ${Math.round(settings.volume * 100)}%` });
+			const volumeGroup = controlsRow.createDiv({ cls: "dungeon-dirge-setting-group dungeon-dirge-inline-group" });
+			volumeGroup.createEl("label", { text: `Vol: ${Math.round(settings.volume * 100)}%` });
 			const volumeSlider = volumeGroup.createEl("input", {
 				type: "range",
-				cls: "dungeon-dirge-volume-slider-drawer",
+				cls: "dungeon-dirge-slider",
 				attr: {
 					min: "0",
 					max: "100",
@@ -353,7 +384,7 @@ export class DungeonDirgeView extends ItemView {
 				// Update the label
 				const label = volumeGroup.querySelector("label");
 				if (label) {
-					label.textContent = `Volume: ${Math.round(newVolume * 100)}%`;
+					label.textContent = `Vol: ${Math.round(newVolume * 100)}%`;
 				}
 				
 				// Update volume if currently playing
@@ -362,56 +393,58 @@ export class DungeonDirgeView extends ItemView {
 				}
 			});
 			
-			// Fade In, Fade Out, and Loop in one row
-			const audioControlsRow = drawer.createDiv({ cls: "dungeon-dirge-controls-row" });
-			
-			// Fade In
-			const fadeInGroup = audioControlsRow.createDiv({ cls: "dungeon-dirge-setting-group dungeon-dirge-inline-group" });
-			fadeInGroup.createEl("label", { text: "Fade In (s)" });
-			const fadeInInput = fadeInGroup.createEl("input", {
-				type: "number",
-				placeholder: "0",
-				value: String(settings.fadeIn),
-				attr: { min: "0", step: "0.1" }
-			});
-			fadeInInput.addEventListener("input", async () => {
-				const num = parseFloat(fadeInInput.value);
-				if (!isNaN(num) && num >= 0) {
-					settings.fadeIn = num;
-					this.plugin.settings.audioFiles[file.path] = settings;
-					await this.plugin.saveSettings();
+			// Fade In slider
+			const fadeInGroup = controlsRow.createDiv({ cls: "dungeon-dirge-setting-group dungeon-dirge-inline-group" });
+			fadeInGroup.createEl("label", { text: `Fade In: ${settings.fadeIn}s` });
+			const fadeInSlider = fadeInGroup.createEl("input", {
+				type: "range",
+				cls: "dungeon-dirge-slider",
+				attr: {
+					min: "0",
+					max: "30",
+					step: "0.5",
+					value: String(settings.fadeIn)
 				}
 			});
-			
-			// Fade Out
-			const fadeOutGroup = audioControlsRow.createDiv({ cls: "dungeon-dirge-setting-group dungeon-dirge-inline-group" });
-			fadeOutGroup.createEl("label", { text: "Fade Out (s)" });
-			const fadeOutInput = fadeOutGroup.createEl("input", {
-				type: "number",
-				placeholder: "0",
-				value: String(settings.fadeOut),
-				attr: { min: "0", step: "0.1" }
-			});
-			fadeOutInput.addEventListener("input", async () => {
-				const num = parseFloat(fadeOutInput.value);
-				if (!isNaN(num) && num >= 0) {
-					settings.fadeOut = num;
-					this.plugin.settings.audioFiles[file.path] = settings;
-					await this.plugin.saveSettings();
-				}
-			});
-			
-			// Repeat
-			const repeatGroup = audioControlsRow.createDiv({ cls: "dungeon-dirge-setting-group dungeon-dirge-inline-group" });
-			repeatGroup.createEl("label", { text: "Loop" });
-			const repeatCheckbox = repeatGroup.createEl("input", {
-				type: "checkbox"
-			});
-			repeatCheckbox.checked = settings.repeat;
-			repeatCheckbox.addEventListener("change", async () => {
-				settings.repeat = repeatCheckbox.checked;
+			fadeInSlider.addEventListener("input", async (e) => {
+				const target = e.target as HTMLInputElement;
+				const newFadeIn = parseFloat(target.value);
+				settings.fadeIn = newFadeIn;
 				this.plugin.settings.audioFiles[file.path] = settings;
 				await this.plugin.saveSettings();
+				
+				// Update the label
+				const label = fadeInGroup.querySelector("label");
+				if (label) {
+					label.textContent = `Fade In: ${newFadeIn}s`;
+				}
+			});
+			
+			// Fade Out slider
+			const fadeOutGroup = controlsRow.createDiv({ cls: "dungeon-dirge-setting-group dungeon-dirge-inline-group" });
+			fadeOutGroup.createEl("label", { text: `Fade Out: ${settings.fadeOut}s` });
+			const fadeOutSlider = fadeOutGroup.createEl("input", {
+				type: "range",
+				cls: "dungeon-dirge-slider",
+				attr: {
+					min: "0",
+					max: "30",
+					step: "0.5",
+					value: String(settings.fadeOut)
+				}
+			});
+			fadeOutSlider.addEventListener("input", async (e) => {
+				const target = e.target as HTMLInputElement;
+				const newFadeOut = parseFloat(target.value);
+				settings.fadeOut = newFadeOut;
+				this.plugin.settings.audioFiles[file.path] = settings;
+				await this.plugin.saveSettings();
+				
+				// Update the label
+				const label = fadeOutGroup.querySelector("label");
+				if (label) {
+					label.textContent = `Fade Out: ${newFadeOut}s`;
+				}
 			});
 			
 			// Tags

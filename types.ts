@@ -18,7 +18,6 @@ export interface DungeonDirgeSettings {
 	showFadeOut: boolean;
 	showRepeat: boolean;
 	tagGroupOrder: string[]; // custom order of tag groups
-	minimalLayout: boolean; // show minimal layout without metadata
 	collapsedTags: string[]; // tags that are collapsed
 }
 
@@ -30,14 +29,13 @@ export const DEFAULT_SETTINGS: DungeonDirgeSettings = {
 	showFadeOut: true,
 	showRepeat: true,
 	tagGroupOrder: [],
-	minimalLayout: true,
 	collapsedTags: []
 };
 
 export const DEFAULT_AUDIO_FILE_SETTINGS: Partial<AudioFileSettings> = {
 	displayName: "",
-	fadeIn: 0,
-	fadeOut: 0,
+	fadeIn: 5,
+	fadeOut: 5,
 	volume: 0.7,
 	repeat: false,
 	tags: []

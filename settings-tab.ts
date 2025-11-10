@@ -106,22 +106,6 @@ export class DungeonDirgeSettingTab extends PluginSettingTab {
 					modal.open();
 				}));
 
-		// Minimal Layout toggle
-		new Setting(containerEl)
-			.setName("Minimal Layout")
-			.setDesc("Hide timeline, fade times, and repeat indicators for a cleaner interface")
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.minimalLayout)
-				.onChange(async (value) => {
-					this.plugin.settings.minimalLayout = value;
-					await this.plugin.saveSettings();
-					// Refresh the view if it's open
-					const leaves = this.app.workspace.getLeavesOfType("dungeon-dirge-view");
-					leaves.forEach(leaf => {
-						(leaf.view as any).render?.();
-					});
-				}));
-
 		containerEl.createEl("h3", { text: "About" });
 		containerEl.createEl("p", { 
 			text: "DungeonDirge allows you to play multiple audio files simultaneously with customizable fade effects, volume control, and tag-based organization. Perfect for tabletop RPG background music and ambiance."

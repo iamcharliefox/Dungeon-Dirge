@@ -17,12 +17,7 @@
 	border-radius: 5px;
 	padding: 8px;
 	background-color: var(--background-secondary);
-	cursor: grab;
 	transition: opacity 0.2s ease, transform 0.1s ease;
-}
-
-.dungeon-dirge-tag-group:active {
-	cursor: grabbing;
 }
 
 .dungeon-dirge-tag-group.is-dragging {
@@ -40,10 +35,14 @@
 	align-items: center;
 	gap: 8px;
 	padding: 0 0 4px;
-	cursor: pointer;
+	cursor: grab;
 	user-select: none;
 	transition: background-color 0.2s ease;
 	border-radius: 3px;
+}
+
+.dungeon-dirge-tag-header:active {
+	cursor: grabbing;
 }
 
 .dungeon-dirge-tag-header:hover {
@@ -131,27 +130,34 @@
 	white-space: nowrap;
 }
 
-.dungeon-dirge-file-name-clickable {
+.dungeon-dirge-file-name-editable {
 	cursor: pointer;
 	user-select: none;
 }
 
-.dungeon-dirge-file-name-clickable:hover {
-	color: var(--text-accent);
+.dungeon-dirge-inline-name-edit {
+	width: auto;
+	min-width: 100px;
+	max-width: 100%;
+	padding: 0;
+	margin: 0;
+	font-size: inherit;
+	font-weight: 500;
+	background: transparent;
+	border: none;
+	border-bottom: 1px solid var(--interactive-accent);
+	border-radius: 0;
+	color: var(--text-normal);
 }
 
-.dungeon-dirge-metadata-compact {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	margin-top: 2px;
-	font-size: 0.75em;
-	color: var(--text-muted);
+.dungeon-dirge-inline-name-edit:focus {
+	outline: none;
+	border-bottom-color: var(--interactive-accent);
 }
 
 .dungeon-dirge-timeline-compact {
-	flex: 1;
-	min-width: 60px;
+	width: 100%;
+	margin-top: 4px;
 }
 
 .dungeon-dirge-indicators-column {
@@ -236,8 +242,53 @@
 }
 
 .dungeon-dirge-play-button.mod-warning {
-	background-color: var(--interactive-accent) !important;
-	border-color: var(--interactive-accent) !important;
+	background-color: #dc2626 !important;
+	border-color: #dc2626 !important;
+}
+
+.dungeon-dirge-settings-toggle {
+	padding: 0;
+	font-size: 0.7em;
+	background: none !important;
+	border: none;
+	color: var(--text-faint);
+	cursor: pointer;
+	transition: all 0.2s ease;
+	line-height: 1;
+}
+
+.dungeon-dirge-settings-toggle:hover {
+	background: none !important;
+	color: var(--text-muted);
+}
+
+.dungeon-dirge-file-item.is-expanded .dungeon-dirge-settings-toggle {
+	background: none !important;
+	color: var(--text-muted);
+}
+
+.dungeon-dirge-loop-toggle {
+	padding: 4px 8px;
+	font-size: 1.1em;
+	background-color: transparent;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 3px;
+	color: var(--text-muted);
+	cursor: pointer;
+	transition: all 0.2s ease;
+	font-weight: bold;
+}
+
+.dungeon-dirge-loop-toggle:hover {
+	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
+	border-color: var(--text-muted);
+}
+
+.dungeon-dirge-loop-toggle.is-active {
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-color: var(--interactive-accent);
 }
 
 .dungeon-dirge-loop-button {
@@ -289,8 +340,8 @@
 
 .dungeon-dirge-controls-row {
 	display: flex;
-	gap: 8px;
-	align-items: flex-end;
+	gap: 16px;
+	align-items: flex-start;
 }
 
 .dungeon-dirge-setting-group {
@@ -304,10 +355,24 @@
 	min-width: 0;
 }
 
+.dungeon-dirge-setting-group.dungeon-dirge-checkbox-group {
+	flex: 0 0 auto;
+	min-width: 60px;
+	justify-content: flex-end;
+	align-items: center;
+}
+
 .dungeon-dirge-setting-group label {
 	font-size: 0.85em;
 	color: var(--text-muted);
 	font-weight: 500;
+	white-space: nowrap;
+}
+
+.dungeon-dirge-slider {
+	width: 100%;
+	margin: 0;
+	cursor: pointer;
 }
 
 .dungeon-dirge-setting-group input[type="text"],
@@ -329,6 +394,8 @@
 .dungeon-dirge-setting-group input[type="checkbox"] {
 	width: 20px;
 	height: 20px;
+	cursor: pointer;
+}
 }
 
 /* Controls */
