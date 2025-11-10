@@ -1,10 +1,10 @@
 {
   "id": "dungeon-dirge",
-  "name": "DungeonDirge",
+  "name": "Dungeon Dirge",
   "version": "1.0.0",
   "minAppVersion": "0.15.0",
   "description": "Audio player plugin for managing and playing multiple audio files simultaneously with fade effects, volume control, and tag-based organization.",
-  "author": "Charlie",
+  "author": "Charlie Fox",
   "authorUrl": "",
   "isDesktopOnly": false
 }
