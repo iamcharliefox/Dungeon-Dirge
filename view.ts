@@ -6,7 +6,6 @@ export const VIEW_TYPE_DUNGEON_DIRGE = "dungeon-dirge-view";
 
 export class DungeonDirgeView extends ItemView {
 	plugin: DungeonDirgePlugin;
-	private collapsedGroups: Set<string> = new Set();
 	private expandedFiles: Set<string> = new Set();
 
 	constructor(leaf: WorkspaceLeaf, plugin: DungeonDirgePlugin) {
@@ -105,7 +104,7 @@ export class DungeonDirgeView extends ItemView {
 		// Render grouped files
 		orderedTags.forEach((tag, index) => {
 			const files = grouped[tag];
-			const isCollapsed = this.collapsedGroups.has(tag);
+			const isCollapsed = this.plugin.settings.collapsedTags.includes(tag);
 			
 			const tagSection = audioSection.createDiv({ cls: "dungeon-dirge-tag-group" });
 			tagSection.setAttribute("draggable", "true");
@@ -123,23 +122,24 @@ export class DungeonDirgeView extends ItemView {
 				text: "⋮⋮"
 			});
 			
-			const tagTitle = tagHeader.createEl("h4", { text: tag || "Untagged" });
+			const tagTitle = tagHeader.createEl("h4", { text: `${tag || "Untagged"} (${files.length})` });
 			if (!isCollapsed) {
 				tagTitle.style.fontWeight = "bold";
 			}
 			
 			// Make header clickable to toggle collapse (except drag handle)
 			tagHeader.style.cursor = "pointer";
-			tagHeader.addEventListener("click", (e) => {
+			tagHeader.addEventListener("click", async (e) => {
 				// Don't collapse if clicking drag handle
 				if ((e.target as HTMLElement).classList.contains("dungeon-dirge-drag-handle")) {
 					return;
 				}
-				if (this.collapsedGroups.has(tag)) {
-					this.collapsedGroups.delete(tag);
+				if (this.plugin.settings.collapsedTags.includes(tag)) {
+					this.plugin.settings.collapsedTags = this.plugin.settings.collapsedTags.filter(t => t !== tag);
 				} else {
-					this.collapsedGroups.add(tag);
+					this.plugin.settings.collapsedTags.push(tag);
 				}
+				await this.plugin.saveSettings();
 				this.render();
 			});
 
@@ -211,7 +211,7 @@ export class DungeonDirgeView extends ItemView {
 		// Play/Stop button with icons (before filename)
 		const playButton = mainRow.createEl("button", {
 			text: isPlaying ? "■" : "▶",
-			cls: isPlaying ? "mod-warning" : "mod-cta"
+			cls: `dungeon-dirge-play-button ${isPlaying ? "mod-warning" : "mod-cta"}`
 		});
 		playButton.addEventListener("click", async () => {
 			if (isPlaying) {
@@ -241,54 +241,74 @@ export class DungeonDirgeView extends ItemView {
 			this.render();
 		});
 
-		const controls = mainRow.createDiv({ cls: "dungeon-dirge-file-controls" });
-
-		// Loop indicator/toggle button
-		const loopButton = controls.createEl("button", {
-			text: "↻",
-			cls: "dungeon-dirge-loop-button"
-		});
-		if (settings.repeat) {
-			loopButton.addClass("is-active");
-		}
-		loopButton.addEventListener("click", async () => {
-			settings.repeat = !settings.repeat;
-			this.plugin.settings.audioFiles[file.path] = settings;
-			await this.plugin.saveSettings();
+		// Show metadata if not in minimal layout mode
+		if (!this.plugin.settings.minimalLayout) {
+			const metadataRow = fileInfo.createDiv({ cls: "dungeon-dirge-metadata-compact" });
 			
-			// Update the audio if currently playing
-			if (isPlaying) {
-				const audio = this.plugin.playerManager.getAudio(file.path);
-				if (audio) {
-					audio.loop = settings.repeat;
+			// Timeline/scrubber
+			const timeline = metadataRow.createDiv({ cls: "dungeon-dirge-timeline-compact" });
+			const progressBar = timeline.createDiv({ cls: "dungeon-dirge-progress-bar" });
+			const progress = progressBar.createDiv({ cls: "dungeon-dirge-progress" });
+			
+			// Get audio element and update progress if playing
+			const audio = this.plugin.playerManager.getAudio(file.path);
+			if (audio && (isPlaying || isStopping)) {
+				const updateProgress = () => {
+					if (audio.duration) {
+						const percent = (audio.currentTime / audio.duration) * 100;
+						progress.style.width = `${percent}%`;
+					}
+				};
+				
+				// Initial update
+				updateProgress();
+				
+				// Update every 100ms while playing
+				const intervalId = window.setInterval(() => {
+					if (!this.plugin.playerManager.isPlaying(file.path) && !this.plugin.playerManager.isStopping(file.path)) {
+						window.clearInterval(intervalId);
+					} else {
+						updateProgress();
+					}
+				}, 100);
+				
+				// Make progress bar clickable for seeking
+				progressBar.addEventListener("click", (e) => {
+					const rect = progressBar.getBoundingClientRect();
+					const x = e.clientX - rect.left;
+					const percent = x / rect.width;
+					audio.currentTime = audio.duration * percent;
+					updateProgress();
+				});
+			}
+			
+			// Fade/Loop indicators column
+			const indicatorsColumn = metadataRow.createDiv({ cls: "dungeon-dirge-indicators-column" });
+			
+			// Repeat (always show, highlight if enabled, click to toggle)
+			const repeatIndicator = indicatorsColumn.createEl("span", { 
+				text: "↻",
+				cls: "dungeon-dirge-meta-item dungeon-dirge-meta-clickable dungeon-dirge-loop-indicator"
+			});
+			if (settings.repeat) {
+				repeatIndicator.addClass("is-active");
+			}
+			repeatIndicator.addEventListener("click", async (e) => {
+				e.stopPropagation();
+				settings.repeat = !settings.repeat;
+				this.plugin.settings.audioFiles[file.path] = settings;
+				await this.plugin.saveSettings();
+				
+				// Update the audio if currently playing
+				if (isPlaying) {
+					const audio = this.plugin.playerManager.getAudio(file.path);
+					if (audio) {
+						audio.loop = settings.repeat;
+					}
 				}
-			}
-			this.render();
-		});
-
-		// Volume slider
-		const volumeContainer = controls.createDiv({ cls: "dungeon-dirge-volume-container" });
-		const volumeSlider = volumeContainer.createEl("input", {
-			type: "range",
-			cls: "dungeon-dirge-volume-slider",
-			attr: {
-				min: "0",
-				max: "100",
-				value: String(Math.round(settings.volume * 100))
-			}
-		});
-		volumeSlider.addEventListener("input", async (e) => {
-			const target = e.target as HTMLInputElement;
-			const newVolume = parseInt(target.value) / 100;
-			settings.volume = newVolume;
-			this.plugin.settings.audioFiles[file.path] = settings;
-			await this.plugin.saveSettings();
-			
-			// Update volume if currently playing
-			if (isPlaying) {
-				this.plugin.playerManager.setVolume(file.path, newVolume);
-			}
-		});
+				this.render();
+			});
+		}
 
 		// Settings drawer (expanded inline)
 		if (isExpanded) {
@@ -309,6 +329,37 @@ export class DungeonDirgeView extends ItemView {
 			});
 			nameInput.addEventListener("blur", () => {
 				this.render();
+			});
+			
+			// Volume slider
+			const volumeGroup = drawer.createDiv({ cls: "dungeon-dirge-setting-group" });
+			volumeGroup.createEl("label", { text: `Volume: ${Math.round(settings.volume * 100)}%` });
+			const volumeSlider = volumeGroup.createEl("input", {
+				type: "range",
+				cls: "dungeon-dirge-volume-slider-drawer",
+				attr: {
+					min: "0",
+					max: "100",
+					value: String(Math.round(settings.volume * 100))
+				}
+			});
+			volumeSlider.addEventListener("input", async (e) => {
+				const target = e.target as HTMLInputElement;
+				const newVolume = parseInt(target.value) / 100;
+				settings.volume = newVolume;
+				this.plugin.settings.audioFiles[file.path] = settings;
+				await this.plugin.saveSettings();
+				
+				// Update the label
+				const label = volumeGroup.querySelector("label");
+				if (label) {
+					label.textContent = `Volume: ${Math.round(newVolume * 100)}%`;
+				}
+				
+				// Update volume if currently playing
+				if (isPlaying) {
+					this.plugin.playerManager.setVolume(file.path, newVolume);
+				}
 			});
 			
 			// Fade In, Fade Out, and Loop in one row

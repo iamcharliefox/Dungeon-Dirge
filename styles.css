@@ -126,7 +126,6 @@
 
 .dungeon-dirge-file-name {
 	font-weight: 500;
-	margin-bottom: 4px;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -139,6 +138,72 @@
 
 .dungeon-dirge-file-name-clickable:hover {
 	color: var(--text-accent);
+}
+
+.dungeon-dirge-metadata-compact {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 2px;
+	font-size: 0.75em;
+	color: var(--text-muted);
+}
+
+.dungeon-dirge-timeline-compact {
+	flex: 1;
+	min-width: 60px;
+}
+
+.dungeon-dirge-indicators-column {
+	display: flex;
+	gap: 4px;
+	align-items: center;
+}
+
+.dungeon-dirge-meta-item {
+	opacity: 0.5;
+	transition: opacity 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+	padding: 2px 6px;
+	border-radius: 3px;
+	background-color: var(--background-modifier-border);
+}
+
+.dungeon-dirge-meta-item.dungeon-dirge-meta-clickable {
+	cursor: pointer;
+	user-select: none;
+}
+
+.dungeon-dirge-meta-item.dungeon-dirge-meta-clickable:hover {
+	opacity: 0.8;
+	background-color: var(--background-modifier-hover);
+}
+
+.dungeon-dirge-meta-item.is-active {
+	opacity: 1;
+	color: var(--text-on-accent);
+	background-color: var(--interactive-accent);
+	font-weight: bold;
+}
+
+.dungeon-dirge-loop-indicator {
+	font-size: 1em;
+	font-weight: bold;
+}
+
+.dungeon-dirge-progress-bar {
+	width: 100%;
+	height: 3px;
+	background-color: var(--background-modifier-border);
+	border-radius: 2px;
+	overflow: hidden;
+	cursor: pointer;
+}
+
+.dungeon-dirge-progress {
+	height: 100%;
+	background-color: var(--interactive-accent);
+	width: 0%;
+	transition: width 0.1s linear;
 }
 
 .dungeon-dirge-file-details {
@@ -163,6 +228,16 @@
 .dungeon-dirge-file-controls button {
 	padding: 4px 12px;
 	font-size: 0.9em;
+}
+
+.dungeon-dirge-play-button {
+	background-color: var(--background-modifier-border) !important;
+	border-color: var(--background-modifier-border) !important;
+}
+
+.dungeon-dirge-play-button.mod-warning {
+	background-color: var(--interactive-accent) !important;
+	border-color: var(--interactive-accent) !important;
 }
 
 .dungeon-dirge-loop-button {
@@ -244,6 +319,11 @@
 	background-color: var(--background-primary);
 	color: var(--text-normal);
 	font-size: 0.9em;
+}
+
+.dungeon-dirge-volume-slider-drawer {
+	width: 100%;
+	margin: 0;
 }
 
 .dungeon-dirge-setting-group input[type="checkbox"] {
